@@ -1,0 +1,128 @@
+#Name: Nicole Ramos 
+#Date: 09-17-2025
+#Title: Lab_02
+
+---
+title: "lab_02"
+author: "Derek Willis"
+date: "2025-01-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load libraries and establish settings
+
+```{r}
+# Turn off scientific notation
+options(scipen=999)
+
+# Load the tidyverse. If you have not installed the tidyverse already, remove the # from the next line and run it first.  
+# install.packages('tidyverse')
+library(tidyverse)
+library(lubridate)
+```
+
+## Load Data
+
+Let's keep working with the UMD courses and Maryland campaign expense data we used in the pre_lab.
+
+```{r}
+umd_courses <- read_rds("data/umd_courses.rds")
+maryland_expenses <- read_csv("data/maryland_expenses.csv")
+```
+
+## Answer questions
+
+**Q1.** How many departments have offered the courses with "Climate" in the title and at least one seat? Which department has offered the most? 
+
+**A1.**
+#There are 32 departments that offer courses with Climate in the title and at least one seat. Atmospheric and Ocean Science offers the most courses.
+```{r}
+climate_courses <- umd_courses |> select(title, department, seats) |>
+  filter(str_detect(title, "Climate")) |> filter(seats >= 1) |> 
+  group_by(department) |>
+  summarize(classes=n()) |>
+  arrange(desc(classes))
+```
+
+**Q2.** Of the departments listed in A1, which one is the most interesting to you, and why? 
+
+**A2.**
+#The department of Teaching and Learning, Policy and Leadership is the most interesting to me. A quick Google search shows that this department encourage[s] thoughtful and responsive explorations of education policies, practices and related social issues."
+
+**Q3** Which departments offered the most courses in the Fall 2024 term? And which departments in that term have at least one syllabus posted? Answer both of those questions and then compare the top five departments - how are they different?
+
+**A3.**
+#The six Fall 2024 departments that offered the most classes were Business and Management, School of Music, Information Studies, English, Teaching and Learning Policy and Leadership, and History. 
+
+#The six Fall 2024 departments that offered the most classes and had at least one syllabus posted were Business and Management, Economics, School of Music, Information Studies, Engineering Professional Masters, and Public Policy. 
+
+#English and Teaching and Learning Policy and Leadership ranked within the top five courses with the most classes in Fall 2024, whereas Economics and Engineering Professional Masters ranked within top five Fall 2024 courses that have at least one syllabus posted. 
+
+```{r}
+courses_2024 <- umd_courses |> filter(term == 202408) |>
+group_by(department) |>
+summarize(classes=n()) |>
+arrange(desc(classes))
+head(courses_2024)
+```
+
+
+```{r}
+courses_2024_2 <- umd_courses |> filter(term == 202408) |> filter(syllabus_count > 0) |>
+  group_by(department) |>
+  summarize(classes=n()) |>
+  arrange(desc(classes))
+
+head(courses_2024_2)
+```
+
+
+**Q4.** Using the Maryland campaign expenses data, change the datatype of the expenditure_date column so that it is a date and not a chr, saving the result as a new dataframe. Then create a new column for the month based on expenditure_date. Then write code that shows total amount spent each month by Wes Moore's committee (you'll need to search the data to find the exact name, and we're not looking in payee_name). Write a sentence describing the pattern of spending over time. 
+
+**A4.**
+
+```{r}
+maryland_expenses_new <- maryland_expenses |> 
+  mutate(expenditure_date=mdy(expenditure_date))|>
+mutate(month = floor_date(expenditure_date, "month")) |>
+  filter(str_detect(committee_name, " Wes ")) |>
+group_by(month) |>
+  summarise(total_amount = sum(amount)) |>
+  arrange(month)
+```
+
+#It looks like spending between 2021-05-01 and 2022-11-01 mostly increased, with some periodical two-month dips. Between 2022-10-01 and 2022-11-01 there was a substantial decrease. A quick Google AI search shows that Moore was elected in November 2022, so it makes sense that the month before he was elected would be the largest per month spending, and the month in which he was elected would be a huge decrease. 
+
+
+**Q5.** Using case_when(), create a column in the Maryland expenses data called `spending_location` indicating whether each record spent money in Maryland or outside Maryland. For records that are in Maryland, make the new column's value "In-state" and for all others, make it "Out of state". Then write code that shows the total amount of money spent in each category and describe the results. You can do this in one statement or break it up into two statements (saving the new column to your dataframe).
+
+**A5**
+
+```{r}
+maryland_expenses <- maryland_expenses |>
+  mutate(spending_location = case_when(str_detect(address, " Maryland ") ~ "In-state", .default = "Out of State"
+        )) 
+```
+
+```{r}
+maryland_expenses_by_state <- maryland_expenses |> group_by(spending_location) |>
+  summarize(total = sum(amount, na.rm = TRUE))
+```
+
+**Q6.** Choose your own adventure: using either the UMD courses or campaign expenses data, ask and answer a question that is different than the previous ones. You can use one of the ones you provided in the pre_lab. 
+
+**A6.**
+#What do the Maryland expenses look like per year?
+
+```{r}
+maryland_expenses_year <- maryland_expenses |> 
+mutate(year = floor_date(expenditure_date, "year")) |>
+group_by(year) |>
+  summarise(total_amount = sum(amount)) |>
+  arrange(year)
+```
+
