@@ -118,11 +118,15 @@ maryland_expenses_by_state <- maryland_expenses |> group_by(spending_location) |
 **A6.**
 #What do the Maryland expenses look like per year?
 
+#In 2021, Maryland spent $20496178 and in 2022 spent $108792569. 
+
 ```{r}
 maryland_expenses_year <- maryland_expenses |> 
+  mutate(expenditure_date=mdy(expenditure_date)) |>
 mutate(year = floor_date(expenditure_date, "year")) |>
 group_by(year) |>
-  summarise(total_amount = sum(amount)) |>
+  summarise(total_amount = sum(amount, na.rm=TRUE)) |>
   arrange(year)
+head(maryland_expenses_year)
 ```
 
