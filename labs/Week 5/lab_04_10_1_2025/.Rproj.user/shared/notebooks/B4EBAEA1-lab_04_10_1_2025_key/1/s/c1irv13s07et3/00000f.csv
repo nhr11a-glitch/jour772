@@ -1,0 +1,4 @@
+"0","expenses_cleaned <- expenses |>"
+"0","   filter(expense_category == ""Media"") |> "
+"0","  mutate(payee_clean=n_gram_merge(payee_name))"
+"0"," "
