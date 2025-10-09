@@ -1,0 +1,214 @@
+#Name: Nicole Ramos
+#Date: 10/07/2025
+#Assignment: Lab 5
+
+---
+title: "lab_05"
+author: "Derek Willis"
+date: "2025-01-16"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## You will need
+
+-   Tabula
+
+## Load tidyverse, janitor and lubidate libraries and establish settings
+
+```{r}
+# Turn off scientific notation
+options(scipen=999)
+
+# Load the tidyverse, plus any other packages you will need to clean data and work with dates.
+library(tidyverse)
+library(janitor)
+library(lubridate)
+```
+
+## Get Our PDF
+
+We'll be working with the [911 overdose calls from Baltimore
+County](https://drive.google.com/file/d/1qkYuojGF_6WKFr5aNQxmewDzcKyOiJFr/view?usp=share_link).
+
+Examine the document:
+
+-   DAT_FORMAT is date of the incident
+
+-   DAT_FORMACAATSE_NBR has the date and time of the incident
+
+-   CASE_NBR is the case number
+
+-   EVTYP is event_type
+
+-   LOC is the location
+
+Download it to your labs folder. You will extract the tables within it,
+export that to a CSV file, load it into RStudio and ask some questions.
+
+## Extract Data from PDF Using Tabula
+
+Launch Tabula (you may then need to go to <http://127.0.0.1:8080/> in
+your browser). Click the "Browse" button and find the PDF file and click
+"open", and then click the "Import button" in Tabula.
+
+This PDF has a single table spread over multiple pages to extract. We're
+going to make a single dataframe from this table, exporting it to a CSV
+file that you will load into R. In Tabula, highlight the table and click
+the "Preview & Export Extracted Data" button.
+
+**HINT: You may want to play with including or excluding the column
+headers.**
+
+**YOU MUST HAVE FIVE COLUMNS OF DATA FOR EXPORT.**
+
+The final entry should be 02/06/23 at 5651 BRAXFIELD RD
+
+Save the CSV (it should be called
+`tabula-Baltimore County; Carey, Samantha log OD.csv` by default) to
+your lab_05/data folder.
+
+From there, you will need to read in the data, and add or fix headers.
+
+You can choose to include the headers from the PDF in your exported
+CSV files OR to exclude them and add them when importing. 
+`read_csv` allows us to do this ([and
+more](https://readr.tidyverse.org/reference/read_delim.html)).
+Note the col_names entry: col_names
+Either TRUE, FALSE or a character vector of column names.
+If TRUE, the first row of the input will be used as the column names, and will not be included in the data frame. If FALSE, column names will be generated automatically: X1, X2, X3 etc.
+
+## Load and clean up the data in R
+
+You will need to read in and clean up the data so that it can be used
+for analysis. By "clean" I mean the column headers should not contain
+spaces and they should have meaningful names, not "x1" or something
+similar. How you do that is up to you, but you can use select() with or
+without the minus sign to include or exclude certain columns. You also
+can use the `rename` function to, well, rename columns. Importantly,
+you'll need to ensure that any columns containing a date actually have a
+date datatype. `lubridate` can help with this.
+
+```{r}
+Baltimore_calls <- read_csv("tabula-Baltimore County; Carey, Samantha log OD.csv", col_names = FALSE) |>
+  clean_names() |> 
+  rename(date = x1, 
+         date_time = x2, 
+         case_number = x3, 
+         event_type = x4, 
+         location = x5) |>
+  mutate(date=mdy(date))
+```
+
+## Answer questions
+
+Q1. Write code to generate the number of calls that occurred on each
+date. 
+
+A1.
+
+```{r}
+Baltimore_calls |> 
+  group_by(date) |>
+  summarize(count = n()) |>
+  arrange(desc(count))
+
+```
+
+Q1a: Write down this answer: Which date in 2022 had the most overdose calls, and how many?
+
+**Q1a answer**:
+#October 4th and July 14th in 2022 are tied for the most calls, 23. 
+
+```{r}
+Baltimore_calls |> 
+  filter(str_detect(date, regex("2022"))) |>
+  group_by(date) |>
+  summarize(count = n()) |>
+  arrange(desc(count))
+```
+
+
+Q1b: Write down this answer: Look at the total number of rows in your result from Q1. How many dates are represented in this data?
+
+**Q1b answer**:
+#There are 366 dates represented in the data. 
+
+Q2. You want to see if overdose calls fall on a particular day of the week.
+
+**Write code for the following:**
+Add a column to your dataframe that shows the day of the week represented by each date. 
+
+```{r}
+Baltimore_calls <- Baltimore_calls |>
+  mutate(day_week=
+           (wday(date,label = TRUE,
+  abbr = TRUE,
+  week_start = getOption("lubridate.week.start", 7),
+  locale = Sys.getlocale("LC_TIME"))))
+```
+
+
+You can do this using lubridate. Look up how you would do this. https://lubridate.tidyverse.org/
+
+Then write code to calculate:
+1) the number of calls for each day of the week
+2) and add a column that calculates the percentage of all calls on each
+day of the week.
+
+Your result will have the day of the week, total
+number of calls and the percentage of calls on that day out of the total
+number of all calls. 
+
+
+```{r}
+Baltimore_calls_totals <- Baltimore_calls |>
+  group_by(day_week) |>
+  summarize(count = n()) |>
+    mutate(pct_calls = count/sum(count)*100) |>
+  arrange(desc(count))
+
+```
+
+**Q2a. Write an answer describing your findings.**
+#Saturday was the day of the week with the most calls, 638. Saturday's calls comprise about 15.52% of total calls. Sunday comes in a close second, though, with 621 calls, translating to 15.10% of the total. It's not suprising that Friday, the other day of the week considered part of the "weekend," is number 3 on the list. What IS surprising is that Tuesday is number 4 and not significantly less percentage-wise than Friday--less than 1%, in fact. 
+
+Q3. Now let's look at locations. 
+
+**Write code for the following:**
+Which locations have the most calls?
+
+A3.
+
+```{r}
+Baltimore_calls |>
+  group_by(location) |>
+  summarize(count = n()) |>
+  arrange(desc(count))
+```
+
+**Q3a. Write an answer to the following:**
+How would you describe them? Search on the Web for more information. Is there anything about the structure of the original data that might make you less confident in the counts by location or date?
+
+#There are 47 rows of calls that are located at a police precinct office. The location variable appears to identify which precinct and the address of the precinct office. This makes me think the location of the call was within the specific precinct identified, but the specific address was missing, not attained, not logged, etc. It makes me wonder if a call was made and not followed up on by police or was made erroneously, or something else. There are a lot of possibilities, so I do think I am less confident in the specificity of the data. I also noticed for location 1515 Lanflair Road that there are 3 entries for the same date and time within seconds of eachother. One of the entries seems to update the earliest entry, which had the address at 1516. This makes me more suspicious of potentially duplicate entries. 
+
+```{r}
+Baltimore_calls |>
+  filter((str_detect(location, "PC ")))
+```
+
+
+
+
+**Q4.  Write an answer to the following:** What's the best story idea or question you've seen as a result of the work you've done in this lab?
+
+A4.
+#Why are there so many 911 overdose calls not linked to a specific location?!
+
+#I'd be interested to filter for Tuesdays and see what calls on these days look like. Are they are in the morning? Evening? My immediate thought when I saw Tuesday was that maybe this is tied to the stressors of the weekday.
+
+#There are a lot of motels on that list that are likely long-term stay motels. In my experience doing outreach to motels like this, some people stay long enough to form a community, not unlike a suburban neighborhood. I wonder if there's a more human-centered story where people living in these motels can talk about their experiences witnessing multiple emergency overdose responses. 
+
