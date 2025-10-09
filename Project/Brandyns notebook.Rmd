@@ -1,0 +1,85 @@
+---
+title: "Brandyn's Data Notebook"
+author: "Brandyn Fragosa"
+date: "2025-10-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+options(scipen=999)
+library(tidyverse)
+library(janitor)
+library(lubridate)
+```
+
+```{r}
+fatal_police_shootings_data <- read_csv("fatal-police-shootings-data.csv") %>% 
+  clean_names() %>% 
+  mutate(date_new = ymd(date))
+```
+```{r}
+fatal_police_shootings_agencies <- read_csv("fatal-police-shootings-agencies.csv") %>% 
+  clean_names()
+```
+```{r}
+# Men and woman shot by police since 2015 to sep 4 2020 who had mental illnesses.
+
+fatal_police_shootings_data %>% 
+  filter(
+    date_new < "2020-09-03"
+  ) %>% 
+  filter(
+    str_detect(gender, "male")|
+    str_detect(gender, "female")) %>% 
+group_by(gender) %>%
+summarise(count = n())
+
+```
+gender == "F" | gender == "female",
+    was_mental_illness_related == TRUE
+  ) %>%
+  summarise(total_women_shot_with_mental_illness = n())
+  
+#5 - Nicole   
+```{r}
+#5A. Since 2015, police have killed 26 unarmed women, including Taylor.
+
+fatal_police_shootings_data |>
+  filter(date_new < "2020-09-03" & 
+           gender== "female") |>
+  group_by(armed_with) |>
+  summarise(count = n())
+  
+```
+```{r}
+#5B.Of those, 14 were White, seven were Black, four were Hispanic and one’s race was unknown.
+
+#5C.While about twice as many White women were shot and killed as Black women...
+
+fatal_police_shootings_data |>
+  filter(date_new < "2020-09-03" & 
+           gender== "female" &
+           armed_with == "unarmed") |>
+  group_by(race) |>
+  summarise(count = n())
+
+```
+
+```{r}
+#5C.The second statistic quoted above seems to refer to unarmed White women in comparison to unarmed Black women, because White women fatally shot by police would otherwise be about three times as many as Black women. 
+
+fatal_police_shootings_data |>
+  filter(date_new < "2020-09-03" & 
+           gender== "female") |>
+  group_by(race) |>
+  summarise(count = n())
+
+```
+  
+# 5D. White women account for five times the Black female population.
+Given that The Washington Post's GitHub does not contain any csv files for total U.S. population, the statistic could come from 2010 census data (https://www.census.gov/library/visualizations/interactive/race-and-ethnicity-in-the-united-state-2010-and-2020-census.html). In 2010, the population identifying as White alone was 61.6%, which is five times more than the population identifying as Black, 12.4%. These numbers, though, are not filtered out for specific gender.  
+  
