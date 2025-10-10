@@ -1,0 +1,140 @@
+---
+title: "reverse_engineering_project_milestone_02"
+author: "Brandyn Fragosa, Nicole Ramos, Akira Kyles"
+date: "2025-10-10"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+options(scipen=999)
+library(tidyverse)
+library(janitor)
+library(lubridate)
+```
+
+```{r}
+fatal_police_shootings_data <- read_csv("fatal-police-shootings-data.csv") %>% 
+  clean_names() %>% 
+  mutate(date_new = ymd(date))
+```
+
+###Brandyn
+```{r}
+# Q2. Number of fatal police shootings by gender since 2015 to 09/04/2020 (publication of the article.
+
+shootings_by_gender <- fatal_police_shootings_data %>% 
+  filter(date_new < "2020-09-04") %>% 
+  filter(
+    str_detect(gender, "male")|
+    str_detect(gender, "female")
+)%>% 
+group_by(gender) %>%
+summarise(count = n())
+```
+
+```{r}
+# Q2. Men and woman shot by police since 2015 who had mental illnesses.
+
+Mental_illness_related_by_gender <- fatal_police_shootings_data %>% 
+  filter(date_new < "2020-09-04") %>% 
+  filter((str_detect(gender, "male")|str_detect(gender, "female"))&
+  str_detect(was_mental_illness_related, "TRUE"))%>% 
+group_by(gender) %>%
+summarise(count = n())
+
+```
+
+```{r}
+# Q2. Percentage of men and woman shot by police since 2015 who had mental illnesses.
+
+total_women_shot <- fatal_police_shootings_data %>% 
+    filter(date_new < "2020-09-04") %>% 
+    filter(str_detect(gender, "female")) %>% 
+  group_by(gender) %>%
+  summarise(total = n())
+
+women_with_mental_illness <- fatal_police_shootings_data %>% 
+    filter(date_new < "2020-09-04") %>% 
+    filter(
+      str_detect(gender, "female"),
+      str_detect(was_mental_illness_related, "TRUE"))%>% 
+    group_by(gender) %>% 
+    summarise(total = n ())
+
+#I was having so much trouble grabbing the total from the two data sets and could not figure it out, I tried using chatgpt to explain whats wrong with my code but nothing would give me the values I needed.
+
+total_women_shot <- 248
+women_with_mental_illness <- 83
+Pct_with_mental_illness <- (women_with_mental_illness / total_women_shot) * 100
+
+```
+  
+###Nicole   
+```{r}
+#5A. Since 2015, police have killed 26 unarmed women, including Taylor.
+
+fatal_police_shootings_data |>
+  filter(date_new < "2020-09-03" & 
+           gender== "female") |>
+  group_by(armed_with) |>
+  summarise(count = n())
+  
+```
+
+```{r}
+#5B.Of those, 14 were White, seven were Black, four were Hispanic and one’s race was unknown.
+
+#5C.While about twice as many White women were shot and killed as Black women...
+
+fatal_police_shootings_data |>
+  filter(date_new < "2020-09-03" & 
+           gender== "female" &
+           armed_with == "unarmed") |>
+  group_by(race) |>
+  summarise(count = n())
+
+```
+
+```{r}
+#5C.The second statistic quoted above seems to refer to unarmed White women in comparison to unarmed Black women, because White women fatally shot by police would otherwise be about three times as many as Black women. 
+
+fatal_police_shootings_data |>
+  filter(date_new < "2020-09-03" & 
+           gender== "female") |>
+  group_by(race) |>
+  summarise(count = n())
+
+```
+  
+# 5D. White women account for five times the Black female population.
+Given that The Washington Post's GitHub does not contain any csv files for total U.S. population, the statistic could come from 2010 census data (https://www.census.gov/library/visualizations/interactive/race-and-ethnicity-in-the-united-state-2010-and-2020-census.html). In 2010, the population identifying as White alone was 61.6%, which is five times more than the population identifying as Black, 12.4%. These numbers, though, are not filtered out for specific gender.  
+  
+
+###Akira Kyles
+```{r}
+#By race, 147 of the women killed were White, 48 Black and 29 Hispanic. Five were Native American, four were Asian and three were other races.
+fatal_police_shootings_data |> 
+  filter(date < "2020-09-01" &
+           gender== "female") |> 
+  group_by(race) |> 
+  summarise(count=n()) 
+  
+```
+
+```{r}
+###By percentages, men shot by police were less often White and more often Black or Hispanic. 
+###My data shows this statement as false and it was actually the complete opposite. 
+fatal_police_shootings_data |> 
+  filter(date < "2020-09-03" &
+           gender== "male" & 
+           armed_with== "gun" & 
+           threat_type== "shoot") |> 
+  group_by(race) |> 
+  summarise(count = n()) |> 
+  mutate(percentage = (count / sum(count)) * 100)
+ 
+```
