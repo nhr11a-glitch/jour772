@@ -84,7 +84,6 @@ yes, you have to precede the file with a dot: .gitignore
 system("git status")
 ```
 
-
 ## Setup Census API
 
 You'll need your Census API Key:
