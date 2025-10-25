@@ -13,6 +13,10 @@ Lab07 - API Keys and Tidycensus
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+```{r}
+Sys.getenv("R_PROFILE_USER")
+```
+
 ## You will need
 
 -   A Census API key
@@ -28,8 +32,8 @@ You'll need to load two packages for this: the tidyverse and tidycensus.
 options(scipen=999)
 
 # Load the tidyverse.
-library(tidyverse)
 library(tidycensus)
+library(tidyverse)
 ```
 
 ## Security and API keys
@@ -85,6 +89,7 @@ yes, you have to precede the file with a dot: .gitignore
 ```{r}
 system("git status")
 ```
+
 
 ## Setup Census API
 
