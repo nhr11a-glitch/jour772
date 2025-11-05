@@ -1,0 +1,334 @@
+---
+title: "Data Notebook"
+author: "Brandyn Fragosa, AKira Kyles and Nicole Ramos"
+date: "2025-10-08"
+output: html_document
+---
+
+###This R file will include a database that examines the rate of police shootings by both race and gender in America. The orginal database that this file in built on is from a Washington Post data that led to a 2020 article. We worked to recreate the same information in the article built off the same data.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+options(scipen=999)
+install.packages("ggrepel")
+install.packages("ggplot2")
+library(tidyverse)
+library(janitor)
+library(lubridate)
+library(ggplot2)
+library(ggrepel)
+library(tidycensus)
+```
+
+```{r}
+fatal_police_shootings_data <- read_csv("fatal-police-shootings-data.csv") %>% 
+  clean_names() %>% 
+  mutate(date_new = ymd(date)) |>
+    mutate(race_new = case_when(str_detect(race, "W") ~ "White",
+str_detect(race, "B") ~ "Black",
+str_detect(race, "A") ~ "Asian heritage",
+str_detect(race, "N") ~ "Native American",
+str_detect(race, "H") ~ "Hispanic",
+str_detect(race, "O") ~ "Other",
+str_detect(race, "--") ~ "Unknown",
+str_detect(race, "B;H") ~ "Black and Hispanic",
+str_detect(race, "N;H") ~ "Native American and Hispanic",
+str_detect(race, "W;A") ~ "White and Asian heritage",
+str_detect(race, "W;B") ~ "White and Black",
+str_detect(race, "W;B;N") ~ "White and Black and Native American",
+str_detect(race, "W;H") ~ "White and Hispanic"))
+```
+
+**Brandyn** #For question 2, the article provides a data set totaling the number of Women and Men who have been fatally shot by police and had mental illness. They dont include people who identify as non-binary in this data set and they dont explain why, and the 20 people who's gender is N/A are those whos gender was missing in the police report. What I first did to filter my data was create a table that collected only the number of male and females shot by police since 2015, when the data set first starts, to september 4th, 2020, which is the day when the article was published. Since we are writing code to show how the authors got the numbers that they did, we had to base our code on when the article was published because the data set has dates now all the way to December 31st, 2024, and our numbers would be alot higher than what they were finding.
+
+```{r}
+# Q2. Number of fatal police shootings by gender since 2015 to 09/04/2020 (publication of the article.
+
+shootings_by_gender <- fatal_police_shootings_data %>% 
+  filter(date_new < "2020-09-04") %>% 
+  filter(gender == "male" | gender == "female")%>% 
+group_by(gender) %>%
+summarise(count = n())
+```
+
+```{r}
+# Q2. Fatal shootings by gender bar graph.
+
+shootings_by_gender %>% 
+  ggplot(aes(x = gender, y = count, fill = gender))+
+  geom_col(position = "dodge") +
+  labs(
+    title= "Fatally Shot by Gender",
+    y = "Total Shot",
+    x = "Gender",
+    caption = "source: The Washington Post. Graphic by Brandyn Fragosa. 11-4-2025"
+     )
+```
+
+#Through filtering the code even further, we found that 83 women and 1,252 men classified as mentally ill and were shot by police since 2015. We think this is important because, as the Treatment Advocacy Center's Executive Director John Snook says, more men with mental illness are more likely to be fatally shot by police because they are seen more as a "threat." He further adds, "We have a bias against seeing women as dangerous or violent, and their illness may not present with violence in the same way a man's would." This would then explain why more men have been shot and killed by police than women.
+
+```{r}
+# Q2. Men and woman shot by police since 2015 who had mental illnesses.
+
+Mental_illness_related_by_gender <- fatal_police_shootings_data %>% 
+  filter(date_new < "2020-09-04") %>% 
+  filter((str_detect(gender, "male")|str_detect(gender, "female"))&
+  str_detect(was_mental_illness_related, "TRUE"))%>% 
+group_by(gender) %>%
+summarise(count = n())
+```
+
+#When calculating the percentage of men and women fatally shot by police and had mental illness, we found that women had a higher percentage with 33% and men with 23%. I'm assuming the reason why women who are fatally shot by police and have a mental illness have a higher percentage than men is because as mentioned in the previous comment, police oftenly view women to be "less violent," so when they deconstruct that belief, the likliehood of police reacting with force is higher, resulting in a higher fatalility rate.
+
+```{r}
+# Q2. Percentage of men and woman shot by police since 2015 who had mental illnesses.
+
+fatal_police_shootings_data |> 
+  filter(date_new < "2020-09-04", 
+         str_detect(gender, "female"))|> 
+  summarise(
+    total_women_shot = n(),
+    women_with_mental_illness = sum(was_mental_illness_related == TRUE, na.rm = TRUE),
+    pct_with_mental_illness = (women_with_mental_illness / total_women_shot) * 100
+  )
+```
+
+```{r}
+fatal_police_shootings_data |> 
+  filter(date_new < "2020-09-04", 
+         str_detect(gender, "male"))|> 
+  summarise(
+    total_men_shot = n(),
+    men_with_mental_illness = sum(was_mental_illness_related == TRUE, na.rm = TRUE),
+    pct_with_mental_illness = (men_with_mental_illness / total_men_shot) * 100
+  )
+```
+
+#This combined total data frame was created to compare the percentages between male and females who have been fatally shot and with a mental illness.The data frame shows that the total number of men with mental illness who have been fatally shot is higher, however, women have a higher percentage of deaths and having a mental illness because the population size for total women shot is smaller and those with mental illnesses comparatively is high.
+
+```{r}
+# Q2. Combined data frame with percentages for both male and female's fatally shot with mental illnesses.
+
+combined_total <- fatal_police_shootings_data %>% 
+  filter(date_new < "2020-09-04",
+        gender == "male" | gender == "female")%>% 
+  group_by(gender) %>% 
+  summarize(total_shot = n(),
+  with_mental_illness = sum(was_mental_illness_related == TRUE, na.rm = TRUE),
+  pct_with_mental_illness = (with_mental_illness / total_shot) * 100)
+```
+
+```{r}
+# Q2. My bar graph to visualize this data.
+
+combined_total %>% 
+  ggplot(aes(x = gender, y = pct_with_mental_illness, fill = gender))+
+  geom_col(position = "dodge") +
+  labs(
+    title= "Fatally Shot With Mental Illness by Gender",
+    y = "Percent with Mental Illness",
+    x = "Gender",
+    caption = "source: The Washington Post. Graphic by Brandyn Fragosa. 11-4-2025"
+     )
+```
+
+#I wanted to take it a step further and look at what race that was reported to have a mental illness when fatally shot had the higher percentage and was suprised to see that for both male and female's, white people have the highest percentage. Population wise, white people are the largest racial group in the nation so I can understand why they have the highest percentage of deaths with a mental illness because there's a higher liklihood of that happening due to the larger population size. 
+
+```{r}
+# Q2. Male and Female's fatally shot with a mental illness by race.
+
+race_combined_total <- fatal_police_shootings_data %>% 
+  filter(date_new < "2020-09-04",
+        gender == "male" | gender == "female")%>% 
+  group_by(gender, race_new) %>% 
+  summarise(total_shot = n(),
+            with_mental_illness = sum(was_mental_illness_related == TRUE),
+            pct_with_mental_illness = round((with_mental_illness/ total_shot) * 100, 1)
+            )%>% 
+  arrange(gender, desc(pct_with_mental_illness))
+```
+#This ggplot helps visualize how women across all races have a higher percentage of the total shot and with a mental illness than men. I want to also note that the Native American percentage for women is an outlier in this data frame because only 3 out of the 5 women fatally shot had a mental illness, so it makes the percentage way higher. The same thing applies for the "other" data frame. 1 out of the 2 women who were fatally shot classified as "other" had a mental illness and it makes the percentage higher.
+
+```{r}
+# Q2. My bar graph to visualize this data.
+
+race_combined_total %>% 
+  ggplot(aes(x = race_new, y = pct_with_mental_illness, fill = gender))+
+  geom_col(position = "dodge") +
+  labs(
+    title= "Fatally Shot With Mental Illness by Race and Gender",
+    y = "Percent with Mental Illness",
+    x = "Race",
+    caption = "source: The Washington Post. Graphic by Brandyn Fragosa. 11-4-2025"
+     )
+```
+
+**Akira Kyles**
+
+```{r}
+#By race, 147 of the women killed were White, 48 Black and 29 Hispanic. Five were Native American, four were Asian and three were other races.
+
+fatal_police_shootings_data |> 
+  filter(date < "2020-09-01" &
+           gender== "female") |> 
+  group_by(race_new) |> 
+  summarise(count=n()) 
+```
+
+##By percentages, men shot by police were less often White and more often Black or Hispanic. 
+
+##My data shows this statement as false and it was actually the complete opposite and white men are actually shot more than than Black men by percentage.  
+
+```{r}
+fatal_police_shootings_data |> 
+  filter(date < "2020-09-03" &
+           gender== "male")|> 
+  group_by(race_new) |> 
+  summarise(count = n()) |> 
+  mutate(percentage = (count / sum(count)) * 100)
+```
+
+```{r}
+fatal_police_shootings_data |> 
+  filter(date < "2020-09-03", gender == "male")  |> 
+  count(race_new)  |> 
+  mutate(pct_men = (n / sum(n)) * 100)
+```
+
+**The Washington Post article was specific when it said "By percentages, men shot by police were less often White and more often Black or Hispanic." My previous code found this to not be true, but if it were presented more generally, non-white shootings combined would be higher than white shooting.**
+```{r}
+fatal_police_shootings_data |> 
+  filter(date < "2020-09-03", gender == "male")  |> 
+  mutate(white_nonwhite = case_when(
+    race =="W" ~ "white",
+    .default = "nonwhite"
+  )) |> 
+  count(white_nonwhite)  |> 
+  mutate(pct_men = (n / sum(n)) * 100)
+  
+```
+
+
+### For both genders, a gun was the most common weapon. Of men killed, 57 percent were armed with a gun and of women, 44 percent.
+
+```{r}
+armed_shootings <- fatal_police_shootings_data |> filter(date > "2020-09-03" &
+           gender== "female" |
+           gender== "male" ) |>
+  group_by(gender, armed_with) |> 
+  summarise(count = n()) |> 
+  mutate(percentage = round((count / sum(count)) * 100,2))
+```
+**Here I simplified the data even more to make a more appealing graph. I took the top weapon results, which were a gun, blunt object or a knife.  **
+
+```{r}
+armed_shootingsg <- armed_shootings |> 
+  filter(armed_with== "gun" |
+         armed_with== "blunt_object" | 
+         armed_with== "knife"
+         ) |> 
+  group_by(gender, percentage) |> 
+  arrange(desc(percentage))
+```
+**So now my graphic is much cleaner than it would be if I had like 20+ categories for weapons people were armed with when they were shot by police.**
+```{r}
+ armed_shootingsg |> 
+ ggplot(aes(x = armed_with, y = percentage, fill = gender)) +
+  geom_col(position = "dodge") +
+  labs(
+    title= "Percentage of Police Shottings by Gender",
+    y = "Percentage",
+    x = "Gender",
+    caption = "source: The Washington Post. Graphic by Akira Kyles. 11/1/2025"
+     )
+```
+
+```{r}
+fatal_police_shootings_data |> 
+  filter(date > "2020-09-03" &
+           gender== "male" ) |>
+  group_by(armed_with) |> 
+  summarise(count = n()) |> 
+  mutate(percentage = (count / sum(count)) * 100) |> 
+  arrange(desc(percentage))
+```
+
+###The data, although very slightly higher in percentage by minimal margins, those armed with guns is the highests for both genders. In the Washington Post data, 109 women were reported to be armed with a gun but I found 105 and my percentage increased by 4% compared to Washington Post results. The margins for the male data was much closer with 59% compared to the Washington Post's 57%
+
+**Nicole Ramos**
+
+### For 5A, I took the dataset and filtered for two factors: dates before Sept. 3, 2020 and female in the gender column. I grouped the newly filtered data by the column "armed_with," in order to see the counts of females by what weapons they were (or weren't) carrying when killed by police.
+
+###Running the data myself, I am shocked to see that unarmed women are the fourth highest group of women killed in this subset, higher than those killed who were armed with replicas, blunt objects, and gun;knives. 
+
+```{r}
+#5A. Since 2015, police have killed 26 unarmed women, including Taylor.
+fatal_shootings_unarmed_women <- fatal_police_shootings_data |>
+  filter(date_new < "2020-09-03" & 
+           gender== "female") |>
+  group_by(armed_with) |>
+  summarise(count = n(), NA.RM=TRUE) |>
+  arrange(desc(count))
+```
+
+###I decided this code would be the one I wanted a visual representation of, via a bar chart.
+
+```{r}
+fatal_shootings_unarmed_women |> ggplot() + geom_bar(aes(x=reorder(armed_with,count), weight=count)) +coord_flip() +labs(title="Since 2015, police have killed 26 unarmed women",x = "type of weapon",y = "count",caption = "Source: The Washington Post. Graphic created by Nicole Ramos 11/03/2025") + theme_minimal()
+```
+### For 5B, I retained the two previous filters but added one more: unarmed in the "armed_with" column. I then grouped by race and summarized, so I could see the counts of unarmed women by race. 
+
+### 5C's statement doesn't specify whether the Black and White women they are referring to are armed or unarmed. I ran code below, removing the unarmed column filter and grouping by race, to see if that data came from women generally. It did not appear so, as White women fatally shot by police would otherwise be about three times as many as Black women. 5C does appear true when referring to the unarmed female counts by race.
+
+```{r}
+#5B.Of those, 14 were White, seven were Black, four were Hispanic and one’s race was unknown.
+
+#5C.While about twice as many White women were shot and killed as Black women...
+
+fatal_police_shootings_data |>
+  filter(date_new < "2020-09-03" & 
+           gender== "female" &
+           armed_with == "unarmed") |>
+  group_by(race_new) |>
+  summarise(count = n()) |>
+  arrange(desc(count))
+```
+
+```{r}
+#5C.The second statistic quoted above seems to refer to unarmed White women in comparison to unarmed Black women, because White women fatally shot by police would otherwise be about three times as many as Black women. 
+
+fatal_police_shootings_data |>
+  filter(date_new < "2020-09-03" & 
+           gender== "female") |>
+  group_by(race_new) |>
+  summarise(count = n()) |>
+  arrange(desc(count))
+```
+
+### Given that The Washington Post's GitHub does not contain any csv files for total U.S. population, 5D (below) could have come from 2010 data based on the date the article was published. I imported the 2010 Census data in to see, focusing on the following variables: Total!!Population of one race!!White alone (P008003); Total!!Population of one race!!Black or African American alone (P008004); and Total race (P008001). I changed the titles of the columns to clarify the information, setting them as race, population, and total population. Finally, I added a column to show the percentage of the population that identifies as white alone or Black alone. 
+
+###The data shows that white women account for closer to six times the Black female population.
+
+```{r echo=FALSE}
+# 5D. White women account for five times the Black female population.
+census_api_key("", install=FALSE)
+```
+
+```{r}
+sf1 <- load_variables(2010, "sf1", cache = TRUE)
+```
+
+```{r}
+p10 <- get_decennial(geography = "us",variables = c("P008003", "P008004"),
+summary_var = "P008001", year = 2010) |>
+select(variable, value, summary_value) |>
+rename(population=value) |>
+rename(total_population=summary_value) |>
+rename(race=variable) |>
+  mutate(race = case_when(str_detect(race, "P008003") ~ "White alone", str_detect(race, "P008004") ~ "Black alone")) |>
+  mutate(pct_population = (population/total_population)*100)
+View(p10)
+```
