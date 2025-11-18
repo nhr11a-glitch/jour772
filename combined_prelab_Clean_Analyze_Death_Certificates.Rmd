@@ -1,0 +1,296 @@
+
+
+---
+title: "Prelab_demo_Clean_Analyze_Death_Certificates"
+author: "Wells"
+date: "2025-11-17"
+output: html_document
+---
+
+#Name: Nicole Ramos & Bex Heimbrock & Raphael Romero Ruiz
+#Date: 11-17-2025
+#Assignment: Pre-lab_clean_death_certificates
+
+
+This exercise will involve cleaning, tabulating and mapping the death certificate data from Cheltenham and Jessup
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+install.packages("htmlwidgets")
+install.packages("leaflet")
+install.packages("sf")
+install.packages("googlesheets4")
+library(tidyverse)
+library(rio)
+library(janitor)
+library(htmlwidgets)
+library(leaflet)
+library(sf)
+library(googlesheets4)
+library(tidycensus)
+```
+
+### Import Extracted Death Certificate Data
+```{r}
+
+gs4_deauth()  
+dc <- read_sheet("https://docs.google.com/spreadsheets/d/13CthhhfLHiPZqr1P67SCa9BVUyb5Rl6OBhUwvqawDEk/edit?usp=sharing", sheet = "responses_copy") |> 
+    select(-Duplicates) |> 
+  clean_names()
+
+
+```
+
+
+
+## Mapping place of origin
+
+```{r}
+
+dc |> 
+  mutate(origin = birth_place_city_or_town_and_state_write_it_as_bowie_md) |>
+  count(origin) |> 
+  arrange(desc(n))
+
+
+```
+
+### Massive clean origin codeblock
+```{r}
+
+dc <- dc |> 
+  mutate(origin = str_squish(birth_place_city_or_town_and_state_write_it_as_bowie_md)) |> 
+  mutate(origin = str_remove_all(origin, "[?|()]"))|>
+  mutate(county_origin = case_when(
+         str_detect(origin, "(?i)^md\\.?$") ~ "Maryland", 
+         str_detect(origin, "(?i)Frederick, MD") ~ "Frederick County",
+         str_detect(origin, "(?i)baltimore county") ~ "Baltimore County",  
+         str_detect(origin, "(?i)baltimore") ~ "Baltimore city",
+         str_detect(origin, "(?i)Cheltenham") ~ "Prince George's County",
+        str_detect(origin, "(?i)Church Hill") ~ "Queen Anne's County",
+        str_detect(origin, "(?i)Dunkirk, Md.") ~ "Calvert County",
+        str_detect(origin, "(?i)Easton Md") ~ "Talbot County",
+        str_detect(origin, "(?i)Easton, Md") ~ "Talbot County",
+        str_detect(origin, "(?i)Elkton, Md.") ~ "Cecil County",
+        str_detect(origin, "(?i)Ellicott City MD") ~ "Howard County",
+        str_detect(origin, "(?i)Harford County") ~ "Harford County",
+        str_detect(origin, "(?i)Illegible") ~ "Unknown",
+        str_detect(origin, "(?i)Jessup") ~ "Anne Arundel County", 
+            str_detect(origin, "(?i)Md. Residence Oakland, MD.") ~ "Garrett County",
+        str_detect(origin, "(?i)Md. former residence Pocomoke, Md.") ~ "Worcester County",
+        str_detect(origin, "(?i)Not known") ~ "Unknown",
+        str_detect(origin, "Pinna former residence Jamestown, Md.") ~ "Stutsman County",
+        is.na(origin) ~ "Unknown",
+               TRUE ~ origin
+         )) |> 
+      mutate(county_origin = str_remove_all(county_origin, ", Md."))
+```
+
+```{r}
+dc |> 
+  count(county_origin) |> 
+  arrange(desc(n))
+
+
+```
+
+# Map
+### Retrieve county polygons
+
+```{r echo=FALSE}
+census_api_key("", install=FALSE)
+```
+
+```{r}
+
+map <- get_acs(geography = "county", 
+              variables = c(number_households = "B19001_001", median_income = "B19013_001"), 
+               state = "MD", 
+               year = 2020, geometry = TRUE) %>% 
+  mutate(NAME = str_remove_all(NAME, ", Maryland")) |> 
+  select(GEOID, NAME) |> 
+  distinct()
+```
+
+### Join geocoordinates with death certificates
+
+```{r}
+
+dc_map <- dc |>  
+ inner_join(map, by=c("county_origin"="NAME")) 
+
+```
+
+### Data to a coordinate reference system
+transforms the coordinate reference system (CRS) of a spatial object. Need to do this when plotting data on web maps and need to use latitude/logitude
+```{r}
+
+dc_map <- dc_map |> 
+  st_as_sf() |> 
+  sf::st_transform(4326) |> 
+  add_count(county_origin, name = "county_count")
+```
+
+
+
+```{r}
+
+# Use colorFactor for categorical data
+pal <- colorFactor(
+  palette = "viridis",  # or "Set1", "Dark2", etc for categories
+  domain = dc_map$county_count
+)
+
+
+leafMap <- leaflet(data = dc_map) %>%
+  addProviderTiles(providers$Esri.WorldStreetMap) %>%
+  addPolygons(
+    color = ~pal(county_count),
+    weight = 2.5,
+    fillOpacity = 0.5,
+    label = ~paste0("Count of inmates from ", county_origin, ": ", county_count)
+  ) 
+  
+leafMap
+```
+
+
+**Your Turn**
+Split up into groups. Each group will tackle various towns, counties.
+Coordinate so you don't overlap.
+
+Clean and categorize more counties. Examine the data and modify the Massive clean origin codeblock, add more to the county_origin
+
+```{r}
+dc |> 
+  count(county_origin) |> 
+  arrange(desc(n))
+
+
+```
+
+#------------------------------------------------------------------------------
+#Part 2: Cleaning Death Certificate Data
+#------------------------------------------------------------------------------
+
+
+## Check for duplicate names
+```{r}
+
+dc |> 
+  count(name) |> 
+  filter(n > 1)
+
+```
+
+### create separate list of duplicates
+```{r}
+
+dupes <- dc |> 
+  count(name) |> 
+  filter(n > 1) |> 
+  select(name) |> 
+  mutate(name = str_squish(str_replace_all(name,'\\.',''))) |> 
+  pull(name)
+
+```
+
+### mark duplicates
+```{r}
+
+dc <- dc |> 
+  mutate(dupes = case_when(
+    name %in% dupes ~ "x")
+  ) |> 
+  arrange(personal_id) |> 
+  select(dupes, everything()) 
+
+
+```
+
+
+**Meet with students to discuss duplicates**
+
+
+# Causes of death
+I am combining the cause of death from different columns unless there was a mistake
+From the death certificate, we are counting all elements of the cause of death for a "causes of death" metric: Immediate cause of death; Intermediate (or antecedent) cause; Underlying cause of death. 
+```{r}
+
+dc <- dc |> 
+  mutate(cause_death_update = paste(cause_of_death, if_cause_of_death_different_put_that_here, sep = "; ")) |> 
+  mutate(cause_death_update = str_replace_all(cause_death_update, "NA", "")) |> 
+  #removing pesky leading, trailing semicolons
+  mutate(cause_death_update = str_remove_all(cause_death_update, "^;+|;+$"))    |> 
+  mutate(cause_death_update = str_remove_all(cause_death_update, "^[;\\s]+|[;\\s]+$")) |> 
+  mutate(cause_death_update = str_replace_all (cause_death_update, "blank", "")) |> 
+  separate(col = cause_death_update, into = c("death_cause1", "death_cause2", "death_cause3"), sep = ";|and|And|or|&|/")
+
+```
+
+# Extract, tabulate death case
+```{r}
+
+death_categories <- dc |>
+  pivot_longer(cols = c(death_cause1, death_cause2, death_cause3), 
+               names_to = "cause_type", 
+               values_to = "cause") |>
+  count(cause) |>
+  arrange(desc(n))
+  
+
+```
+
+#Categorize
+Split up into groups. Each group will tackle various diseases.
+Coordinate so you don't overlap.
+
+```{r}
+
+death_categories <- death_categories |> 
+    mutate(cause = str_remove_all(cause, "[*]")) |>
+    mutate(cause = str_squish(cause)) |>
+  mutate(category = case_when(
+        cause=="Heart failure" ~ "heart_failure",
+        cause=="And Pneumonia & Heart Failure" ~ "heart_failure",
+        cause=="Heart Failure" ~ "heart_failure",
+        cause=="Immediate: 2 heart failure" ~ "heart_failure",
+        cause=="Immediate: Heart failure" ~ "heart_failure",
+        cause=="Pneumonia and Heart failure" ~ "heart_failure",
+        cause=="Pulmonary Tuberculosis" ~ "tuberculosis",
+        cause=="Lobar Pneumonia" ~ "pneumonia",
+        cause=="Catarrhal Pneumonia" ~ "pneumonia",
+        cause=="Pneumonia (Double so called)" ~ "pneumonia",
+        cause=="Pneumonia (unsure second w" ~ "pneumonia",
+        cause=="Pneumonia Lab" ~ "pneumonia",
+        cause=="Pneumonia phthisis" ~ "pneumonia",
+        cause=="Primary Pneumonia" ~"pneumonia",
+        cause=="Primary: Pneumonia " ~ "pneumonia",
+        cause=='"Pneumonic Phthisis", Heart Failure' ~ "pneumonia",
+        cause==" pneumonia" ~ "pneumonia", 
+        cause==" Pneumonia" ~ "pneumonia",
+        cause==" Pnuemonia" ~ "pneumonia", 
+        cause=="Pneumonia " ~ "pneumonia", 
+        cause==" Pneumonia " ~ "pneumonia", 
+        cause=="Pneumonia" ~ "pneumonia",
+        cause==" Asthenia" ~ "asthenia",
+        cause==" Immediate: Asthenia" ~ "asthenia",
+        cause==" asthenia" ~ "asthenia",
+        cause=="Asthenia (27)" ~ "asthenia",
+        cause=="Don't know, Stomack inflama   lungs congested" ~ "lung_disease",
+        cause=="Oedema of Lungs" ~ "lung_disease",
+        cause=="Hem" ~ "hemorrhage",
+        cause=="rhage" ~ "hemorrhage",
+        cause=="Hemm" ~ "hemorrhage",
+        cause=="y Hemm" ~ "hemorrhage",
+        cause=="wound of groin by hog, hem" ~ "hemorrhage",
+        cause=="Influenza" ~ "Influenza",
+        ## An online search shows oedema of lungs might be more closely associated with heart issues though
+        cause=="rage of Lungs" ~ "lung_disease",
+        TRUE ~ NA_character_
+         ))
+```
+
